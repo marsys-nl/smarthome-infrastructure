@@ -6,7 +6,7 @@ services:
 
   # Backups - Backups the postgres databases. Is run every night at 01:00.
   backups:
-    image: postgres:17.5@sha256:aadf2c0696f5ef357aa7a68da995137f0cf17bad0bf6e1f17de06ae5c769b302
+    image: postgres:17.11@sha256:d74eeac9a635390a49bc21bd49fccd973de707e2a53a76ac49b552b8712ec46f
     depends_on:
       postgres:
         condition: service_healthy
@@ -215,7 +215,7 @@ services:
 
   # Postgres - Database server that is used to persist data from keycloak.
   postgres:
-    image: postgres:17.5@sha256:aadf2c0696f5ef357aa7a68da995137f0cf17bad0bf6e1f17de06ae5c769b302
+    image: postgres:17.11@sha256:d74eeac9a635390a49bc21bd49fccd973de707e2a53a76ac49b552b8712ec46f
     hostname: postgres
     restart: unless-stopped
     ports:
