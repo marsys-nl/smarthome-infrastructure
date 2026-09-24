@@ -2,5 +2,14 @@
   "extends": [
     "config:recommended",
     "docker:pinDigests"
+  ],
+  "packageRules": [
+    {
+      "description": "Ignore Smarthome development snapshots",
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["nmarsman/smarthome-hub"],
+      "matchCurrentValue": "/-SNAPSHOT$/",
+      "enabled": false
+    }
   ]
 }
