@@ -6,7 +6,7 @@ services:
 
   # Backups - Backups the postgres databases. Is run every night at 01:00.
   backups:
-    image: postgres:17.5
+    image: postgres:17.5@sha256:aadf2c0696f5ef357aa7a68da995137f0cf17bad0bf6e1f17de06ae5c769b302
     depends_on:
       postgres:
         condition: service_healthy
@@ -61,7 +61,7 @@ services:
 
   # Certbot - Used to automatically renew certificates.
   certbot:
-    image: certbot/certbot:latest
+    image: certbot/certbot:latest@sha256:f70ad0adbb7e117f0fe42a63c553f28ea451edabc0148757b6efcd9735acaa20
     command:
       - renew
       - --deploy-hook
@@ -80,7 +80,7 @@ services:
 
   # Code server - Used to be able to edit files (e.g. compose.yaml) from the browser.
   code-server:
-    image: codercom/code-server:latest
+    image: codercom/code-server:latest@sha256:81706b71ace316157850cbcfb574714d1067249c107a415b3a03dc6b613ebfbc
     container_name: code-server
     ports:
       - 3000:8080
@@ -93,7 +93,7 @@ services:
   
 
   diun:
-    image: crazymax/diun:latest
+    image: crazymax/diun:latest@sha256:e324b793eb32dfb7f74d3a39421ebf090141caaadee69b8f78da63112408ee25
     hostname: diun
     command: serve
     restart: unless-stopped
@@ -110,7 +110,7 @@ services:
 
   # Keycloak - User to authenticate users for the smarthome platform.
   keycloak:
-    image: keycloak/keycloak:26.7.4
+    image: keycloak/keycloak:26.7.4@sha256:82a77884f3af238beab1e7afd63b5f530e1b5c0590bd7aa60b40a40463e29b2c
     hostname: keycloak
     restart: unless-stopped
     entrypoint: ["/opt/keycloak/bin/kc.sh", "start"]
@@ -154,7 +154,7 @@ services:
 
   # MQTT - Server that is used by the smarthome platform, smart meter integration and zigbee2mqtt to communicate.
   mqtt:
-    image: eclipse-mosquitto:latest
+    image: eclipse-mosquitto:latest@sha256:38c0da4f2ef84284d47b3b3eeea1cb3bdeabe81ee10caf0cd5c5ff61ee3ea408
     restart: unless-stopped
     command: "mosquitto -c /mosquitto/config/mosquitto.conf"
     ports:
@@ -171,7 +171,7 @@ services:
 
   # NGINX - Webserver that provides pages and acts as a reverse proxy.
   nginx:
-    image: nginx:latest
+    image: nginx:latest@sha256:abe47724e466aeab9a345d8e46a221c2fa8953c7848bb4a3bd9976a7199f8cf2
     hostname: nginx
     restart: unless-stopped
     ports:
@@ -189,7 +189,7 @@ services:
 
   # DNS - DNS server that makes sure external domains that point towards this server are also internally usable.
   pihole:
-    image: pihole/pihole:latest
+    image: pihole/pihole:latest@sha256:5b9c8cf51de7d6d3f2240dbe72baf5f06e1fd39cb4d77a99fab4fa13e23bd1be
     restart: unless-stopped
     ports:
       - "0.0.0.0:53:53/tcp"
@@ -215,7 +215,7 @@ services:
 
   # Postgres - Database server that is used to persist data from keycloak.
   postgres:
-    image: postgres:17.5
+    image: postgres:17.5@sha256:aadf2c0696f5ef357aa7a68da995137f0cf17bad0bf6e1f17de06ae5c769b302
     hostname: postgres
     restart: unless-stopped
     ports:
@@ -259,7 +259,7 @@ services:
 
   # VPN - VPN to home server
   wireguard:
-    image: lscr.io/linuxserver/wireguard:latest
+    image: lscr.io/linuxserver/wireguard:latest@sha256:33c5e4260f5ddf9376fcb6f1ff90c0ccc3c63d2ab469595e33d178ecf8a4c4c6
     container_name: wireguard
     cap_add:
       - NET_ADMIN
@@ -285,7 +285,7 @@ services:
 
   # Zigbee2mqtt - Connects zigbee to mqtt
   zigbee2mqtt:
-    image: koenkk/zigbee2mqtt:latest
+    image: koenkk/zigbee2mqtt:latest@sha256:fef0de769dcd04c27b3a6d277b61046eb96284bdd4198dcb1687c3a01b3020f3
     restart: unless-stopped
     ports:
       - 8001:8001
