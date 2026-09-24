@@ -90,22 +90,6 @@ services:
       - /opt/:/home/coder/project
       - /opt/.config:/home/coder/.config
     restart: unless-stopped
-  
-
-  diun:
-    image: crazymax/diun:latest@sha256:e324b793eb32dfb7f74d3a39421ebf090141caaadee69b8f78da63112408ee25
-    hostname: diun
-    command: serve
-    restart: unless-stopped
-    volumes:
-      - /opt/diun/data:/data
-      - /opt/diun/diun.yml:/diun.yml:ro
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    environment:
-      TZ: Europe/Amsterdam
-      LOG_LEVEL: info
-      LOG_JSON: "false"
-      DIUN_NOTIF_SLACK_WEBHOOKURL: ${DIUN_SLACK_WEBHOOK_URL}
 
 
   # Keycloak - User to authenticate users for the smarthome platform.
