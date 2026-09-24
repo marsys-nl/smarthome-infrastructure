@@ -171,7 +171,7 @@ services:
 
   # NGINX - Webserver that provides pages and acts as a reverse proxy.
   nginx:
-    image: nginx:latest@sha256:abe47724e466aeab9a345d8e46a221c2fa8953c7848bb4a3bd9976a7199f8cf2
+    image: nginx:stable
     hostname: nginx
     restart: unless-stopped
     ports:
