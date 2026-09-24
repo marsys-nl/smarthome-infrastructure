@@ -285,7 +285,7 @@ services:
 
   # Zigbee2mqtt - Connects zigbee to mqtt
   zigbee2mqtt:
-    image: koenkk/zigbee2mqtt:2.14.1
+    image: koenkk/zigbee2mqtt:2.14.1@sha256:fef0de769dcd04c27b3a6d277b61046eb96284bdd4198dcb1687c3a01b3020f3
     restart: unless-stopped
     ports:
       - 8001:8001
