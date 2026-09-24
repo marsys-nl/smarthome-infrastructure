@@ -154,7 +154,7 @@ services:
 
   # MQTT - Server that is used by the smarthome platform, smart meter integration and zigbee2mqtt to communicate.
   mqtt:
-    image: eclipse-mosquitto:latest@sha256:38c0da4f2ef84284d47b3b3eeea1cb3bdeabe81ee10caf0cd5c5ff61ee3ea408
+    image: eclipse-mosquitto:2.1.2-alpine
     restart: unless-stopped
     command: "mosquitto -c /mosquitto/config/mosquitto.conf"
     ports:
