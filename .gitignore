@@ -1,0 +1,7 @@
+# Ignore everything by default
+*
+
+# Repository files
+!.gitignore
+!compose.yaml
+!renovate.json

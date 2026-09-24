@@ -1,0 +1,307 @@
+x-dns: &dns
+  dns:
+    - 10.5.0.15
+
+services:
+
+  # Backups - Backups the postgres databases. Is run every night at 01:00.
+  backups:
+    image: postgres:17.5
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: 
+      - sh
+      - -c
+      - |
+        set -eu
+
+        timestamp=$$(date "+%Y-%m-%d_%H-%M")
+        sql="/tmp/$${POSTGRES_BACKUP_NAME}-$${timestamp}.sql"
+        target="/backups/$${POSTGRES_BACKUP_NAME}-$${timestamp}.sql.gz"
+        temporary="$${target}.tmp"
+
+        echo "Creating PostgreSQL backup: $${target}"
+
+        if pg_dumpall \
+          -h postgres \
+          -p 5432 \
+          -U "$${POSTGRES_USER}" \
+          -f "$${sql}"
+        then
+          gzip -c "$${sql}" > "$${temporary}"
+          mv "$${temporary}" "$${target}"
+          rm -f "$${sql}"
+
+          echo "PostgreSQL backup completed: $${target}"
+
+          echo "Pruning backups older than $${POSTGRES_BACKUP_PRUNE_DAYS} days..."
+
+          find "/backups" \
+            -type f \
+            -name "$${POSTGRES_BACKUP_NAME}-*.sql.gz" \
+            -mtime "+$${POSTGRES_BACKUP_PRUNE_DAYS}" \
+            -delete
+        else
+          echo "PostgreSQL backup FAILED" >&2
+          rm -f "$${sql}" "$${temporary}"
+          exit 1
+        fi
+    volumes:
+      - /opt/backup/postgres/:/backups:rw
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_BACKUP_PRUNE_DAYS: ${POSTGRES_BACKUP_PRUNE_DAYS}
+      POSTGRES_BACKUP_NAME: ${POSTGRES_BACKUP_NAME}
+    networks:
+      network:
+        ipv4_address: 10.5.0.200
+
+
+  # Certbot - Used to automatically renew certificates.
+  certbot:
+    image: certbot/certbot:latest
+    command:
+      - renew
+      - --deploy-hook
+      - touch /etc/letsencrypt/.renewed
+    #command: certonly -v --email niels.marsman@gmail.com --agree-tos --no-eff-email --duplicate --expand --webroot --cert-name marsys.network -w=/var/www/certbot/ -d "marsys.network,home.marsys.network,test.home.marsys.network,admin.keycloak.marsys.network,keycloak.marsys.network,support.marsys.network,smarthome.marsys.network,test.smarthome.marsys.network"
+    depends_on:
+      nginx:
+        condition: service_started
+    volumes: 
+     - /opt/certbot/www/:/var/www/certbot/:rw
+     - /opt/certbot/conf/:/etc/letsencrypt/:rw
+    networks:
+      network:
+        ipv4_address: 10.5.0.11
+
+
+  # Code server - Used to be able to edit files (e.g. compose.yaml) from the browser.
+  code-server:
+    image: codercom/code-server:latest
+    container_name: code-server
+    ports:
+      - 3000:8080
+    environment:
+      - PASSWORD=${CODE_SERVER_PASSWORD}
+    volumes:
+      - /opt/:/home/coder/project
+      - /opt/.config:/home/coder/.config
+    restart: unless-stopped
+  
+
+  diun:
+    image: crazymax/diun:latest
+    hostname: diun
+    command: serve
+    restart: unless-stopped
+    volumes:
+      - /opt/diun/data:/data
+      - /opt/diun/diun.yml:/diun.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      TZ: Europe/Amsterdam
+      LOG_LEVEL: info
+      LOG_JSON: "false"
+      DIUN_NOTIF_SLACK_WEBHOOKURL: ${DIUN_SLACK_WEBHOOK_URL}
+
+
+  # Keycloak - User to authenticate users for the smarthome platform.
+  keycloak:
+    image: keycloak/keycloak:26.7.4
+    hostname: keycloak
+    restart: unless-stopped
+    entrypoint: ["/opt/keycloak/bin/kc.sh", "start"]
+    environment:
+      KC_DB: postgres
+      KC_DB_URL_HOST: postgres
+      KC_DB_URL_DATABASE: ${KEYCLOAK_DB_NAME}
+      KC_DB_USERNAME: ${SMARTHOME_DB_USER}
+      KC_DB_PASSWORD: ${SMARTHOME_DB_PASSWORD}
+      KC_DB_SCHEMA: public
+
+      KC_HTTP_ENABLED: "true"
+
+      KC_HOSTNAME: https://keycloak.marsys.network
+      KC_HOSTNAME_ADMIN: https://admin.keycloak.marsys.network
+      KC_HOSTNAME_STRICT: "true"
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "false"
+
+      KC_PROXY_HEADERS: xforwarded
+
+      KC_HEALTH_ENABLED: "true"
+      KC_METRICS_ENABLED: "true"
+      KC_LOG_LEVEL: INFO
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "exec 3<>/dev/tcp/127.0.0.1/9000"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      network:
+        ipv4_address: 10.5.0.30
+
+
+  # MQTT - Server that is used by the smarthome platform, smart meter integration and zigbee2mqtt to communicate.
+  mqtt:
+    image: eclipse-mosquitto:latest
+    restart: unless-stopped
+    command: "mosquitto -c /mosquitto/config/mosquitto.conf"
+    ports:
+      - 1883:1883
+    volumes:
+      - /opt/mqtt/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - /opt/mqtt/mosquitto.passwd:/mosquitto/config/mosquitto.passwd
+      - /opt/mqtt/log/mosquitto.log:/mosquitto/log/mosquitto.log
+      - /opt/mqtt/data/:/mosquitto/data/:rw
+    networks:
+      network:
+        ipv4_address: 10.5.0.40
+
+
+  # NGINX - Webserver that provides pages and acts as a reverse proxy.
+  nginx:
+    image: nginx:latest
+    hostname: nginx
+    restart: unless-stopped
+    ports:
+      - 80:80
+      - 443:443
+    volumes:
+      - /opt/nginx/conf.d/:/etc/nginx/conf.d/:ro
+      - /opt/nginx/www/:/etc/nginx/www/:ro
+      - /opt/certbot/www/:/var/www/certbot/:rw
+      - /opt/certbot/conf/:/etc/nginx/ssl/:ro
+    networks:
+      network:
+        ipv4_address: 10.5.0.10
+
+
+  # DNS - DNS server that makes sure external domains that point towards this server are also internally usable.
+  pihole:
+    image: pihole/pihole:latest
+    restart: unless-stopped
+    ports:
+      - "0.0.0.0:53:53/tcp"
+      - "0.0.0.0:53:53/udp"
+      - "[::]:53:53/tcp"
+      - "[::]:53:53/udp"
+      - "67:67/udp"
+      - "7080:80/tcp"
+      - "7443:443/tcp"
+    volumes:
+      - /opt/pihole/:/etc/pihole/:rw
+    environment:
+      - TZ=Europe/Amsterdam
+      - FTLCONF_webserver_api_password=${PIHOLE_WEBADMIN_PASS}
+      - FTLCONF_dns_listeningMode=all
+    cap_add:
+      - NET_ADMIN
+    networks:
+      network:
+        ipv4_address: 10.5.0.15
+        ipv6_address: fd00:5::15
+
+
+  # Postgres - Database server that is used to persist data from keycloak.
+  postgres:
+    image: postgres:17.5
+    hostname: postgres
+    restart: unless-stopped
+    ports:
+      - 5432:5432
+    volumes:
+      - /opt/postgres/data:/var/lib/postgresql/data/:rw
+      - /opt/postgres/init:/docker-entrypoint-initdb.d:r
+    environment:
+      POSTGRES_MULTIPLE_DATABASES: ${KEYCLOAK_DB_NAME},${SMARTHOME_DB_NAME}
+      POSTGRES_USER: ${SMARTHOME_DB_USER}
+      POSTGRES_PASSWORD: ${SMARTHOME_DB_PASSWORD}
+    healthcheck:
+      test: ["CMD", "pg_isready", "-q", "-d", "${SMARTHOME_DB_NAME}", "-U", "${SMARTHOME_DB_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    networks:
+      network:
+        ipv4_address: 10.5.0.20
+
+
+  # Smarthome - Development server
+  smarthome-dev:
+    <<: *dns
+    image: nmarsman/smarthome-hub:2026.09-SNAPSHOT
+    hostname: smarthome-hub
+    restart: unless-stopped
+    ports:
+      - 9081:8080
+    environment:
+      - PORT=8080
+      - ENV_AUTH_API_KEY=${SMARTHOME_DEV_API_KEY}
+      - ENV_AUTH_JWT_REALM=smarthome-app
+      - ENV_AUTH_JWT_ISSUER=https://keycloak.marsys.network/realms/smarthome
+      - ENV_AUTH_JWT_JWK_URL=https://keycloak.marsys.network/realms/smarthome/protocol/openid-connect/certs
+    networks:
+      network:
+        ipv4_address: 10.5.0.53
+
+
+  # VPN - VPN to home server
+  wireguard:
+    image: lscr.io/linuxserver/wireguard:latest
+    container_name: wireguard
+    cap_add:
+      - NET_ADMIN
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/Amsterdam
+      - SERVERURL=marsys.network #optional
+      - SERVERPORT=51820 #optional
+      - PEERS=1 #optional
+      - PEERDNS=208.67.222.222 #optional
+      - ALLOWEDIPS=0.0.0.0/0 #optional
+      - PERSISTENTKEEPALIVE_PEERS= #optional
+      - LOG_CONFS=true #optional
+    volumes:
+      - /opt/wireguard/config/:/config/:rw
+    ports:
+      - 51820:51820/udp
+    sysctls:
+      - net.ipv4.conf.all.src_valid_mark=1
+    restart: unless-stopped
+
+
+  # Zigbee2mqtt - Connects zigbee to mqtt
+  zigbee2mqtt:
+    image: koenkk/zigbee2mqtt:latest
+    restart: unless-stopped
+    ports:
+      - 8001:8001
+    volumes:
+      - /opt/zigbee2mqtt/data/:/app/data/:rw
+      - /run/udev/:/run/udev/:ro
+    environment:
+      - TZ=Europe/Amsterdam
+    devices:
+      - /dev/serial/by-id/usb-ITEAD_SONOFF_Zigbee_3.0_USB_Dongle_Plus_V2_20230324141603-if00:/dev/ttyACM0
+networks:
+  network:
+    driver: bridge
+    enable_ipv6: true
+    ipam:
+      config:
+        - subnet: 10.5.0.0/16
+          gateway: 10.5.0.1
+        - subnet: fd00:5::/64
