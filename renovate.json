@@ -3,6 +3,8 @@
     "config:recommended",
     "docker:pinDigests"
   ],
+  "prHourlyLimit": 0,
+  "prConcurrentLimit": 0,
   "packageRules": [
     {
       "description": "Ignore Smarthome development snapshots",
@@ -10,6 +12,12 @@
       "matchPackageNames": ["nmarsman/smarthome-hub"],
       "matchCurrentValue": "/-SNAPSHOT$/",
       "enabled": false
+    },
+    {
+      "description": "Automerge Docker updates after repository requirements are met",
+      "matchDatasources": ["docker"],
+      "automerge": true,
+      "automergeType": "pr"
     }
   ]
 }
