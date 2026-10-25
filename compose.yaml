@@ -225,7 +225,7 @@ services:
   # Smarthome - Development server
   smarthome-dev:
     <<: *dns
-    image: nmarsman/smarthome-hub:2026.09-SNAPSHOT
+    image: nmarsman/smarthome-hub:2026.10-SNAPSHOT
     hostname: smarthome-hub
     restart: unless-stopped
     ports:
@@ -236,6 +236,10 @@ services:
       - ENV_AUTH_JWT_REALM=smarthome-app
       - ENV_AUTH_JWT_ISSUER=https://keycloak.marsys.network/realms/smarthome
       - ENV_AUTH_JWT_JWK_URL=https://keycloak.marsys.network/realms/smarthome/protocol/openid-connect/certs
+      - OSHI_UTIL_SYS_PATH=/host/sys
+    volumes:
+      - /sys:/host/sys:ro
+      - /etc/os-release:/etc/os-release:ro
     networks:
       network:
         ipv4_address: 10.5.0.53
