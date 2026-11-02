@@ -80,7 +80,7 @@ services:
 
   # Code server - Used to be able to edit files (e.g. compose.yaml) from the browser.
   code-server:
-    image: codercom/code-server:4.141.0@sha256:72ab24b5680ee597dd647b30d82625752f40109b5f61bef90ffbf1ea1f02dbb8
+    image: codercom/code-server:4.144.0@sha256:b9e8056bb74bd0c4f90284c7559eddeccd38400cfedc28e64c9d3ca50fef1f83
     container_name: code-server
     ports:
       - 3000:8080
